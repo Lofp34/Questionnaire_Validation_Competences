@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Download, Lock, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { Download, Lock, RefreshCw, ChevronDown, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 
 type Result = {
     id: number;
@@ -17,6 +17,7 @@ export default function AdminPage() {
     const [results, setResults] = useState<Result[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
     const fetchResults = async (pwd: string) => {
         setLoading(true);
@@ -42,14 +43,24 @@ export default function AdminPage() {
         fetchResults(password);
     };
 
+    const toggleRow = (id: number) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
+    };
+
     const downloadCSV = () => {
         const headers = ["ID", "Date", "Nom", "Score", "Détails"];
         const rows = results.map(r => [
             r.id,
             new Date(r.created_at).toLocaleString(),
-            `"${r.name}"`, // Quote to handle commas
+            `"${r.name}"`,
             r.score,
-            `"${JSON.stringify(r.details).replace(/"/g, '""')}"` // Escape quotes for CSV
+            `"${JSON.stringify(r.details).replace(/"/g, '""')}"`
         ]);
 
         const csvContent = [
@@ -84,7 +95,7 @@ export default function AdminPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
                                 placeholder="Mot de passe"
                                 autoFocus
                             />
@@ -129,6 +140,7 @@ export default function AdminPage() {
                         <table className="w-full text-left text-sm text-gray-600">
                             <thead className="bg-gray-50 text-gray-900 font-semibold border-b border-gray-200">
                                 <tr>
+                                    <th className="px-6 py-4 w-12"></th>
                                     <th className="px-6 py-4">Date</th>
                                     <th className="px-6 py-4">Apprenant</th>
                                     <th className="px-6 py-4">Score</th>
@@ -139,29 +151,71 @@ export default function AdminPage() {
                                 {results.map((r) => {
                                     const scoreNum = parseInt(r.score.split('/')[0]);
                                     const passed = scoreNum >= 7;
+                                    const isExpanded = expandedRows.has(r.id);
+                                    const details = Array.isArray(r.details) ? r.details : [];
+
                                     return (
-                                        <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {new Date(r.created_at).toLocaleString('fr-FR')}
-                                            </td>
-                                            <td className="px-6 py-4 font-medium text-gray-900">
-                                                {r.name}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="font-mono font-bold">{r.score}</span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${passed ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                                                    }`}>
-                                                    {passed ? 'Validé' : 'À revoir'}
-                                                </span>
-                                            </td>
-                                        </tr>
+                                        <>
+                                            <tr
+                                                key={r.id}
+                                                onClick={() => toggleRow(r.id)}
+                                                className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                            >
+                                                <td className="px-6 py-4">
+                                                    {isExpanded ? (
+                                                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                                                    ) : (
+                                                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    {new Date(r.created_at).toLocaleString('fr-FR')}
+                                                </td>
+                                                <td className="px-6 py-4 font-medium text-gray-900">
+                                                    {r.name}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="font-mono font-bold">{r.score}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${passed ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                                                        }`}>
+                                                        {passed ? 'Validé' : 'À revoir'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                                                        <div className="space-y-3">
+                                                            <h4 className="font-semibold text-gray-900 mb-3">Détail des réponses :</h4>
+                                                            {details.map((detail: any, idx: number) => (
+                                                                <div key={idx} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                                                                    {detail.correct ? (
+                                                                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                                                    ) : (
+                                                                        <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                                                    )}
+                                                                    <div className="flex-1">
+                                                                        <p className="font-medium text-gray-900 mb-1">
+                                                                            Question {idx + 1}: {detail.question}
+                                                                        </p>
+                                                                        <p className={`text-sm ${detail.correct ? 'text-green-700' : 'text-red-700'}`}>
+                                                                            Réponse : {detail.userAnswer}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
                                     );
                                 })}
                                 {results.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                                             Aucun résultat pour le moment.
                                         </td>
                                     </tr>
