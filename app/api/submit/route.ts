@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 
 export async function POST(request: Request) {
-    const body = await request.json();
-    const { name, score, details } = body;
+    try {
+        const body = await request.json();
+        const { name, score, details } = body;
 
-    console.log("Submission received:", { name, score });
+        console.log("Submission received:", { name, score });
 
-    // TODO: Connect to Vercel Postgres here
-    // await sql`INSERT INTO results (name, score, details) VALUES (${name}, ${score}, ${JSON.stringify(details)})`;
+        // Insert into Vercel Postgres
+        await sql`
+      INSERT INTO results (name, score, details, created_at)
+      VALUES (${name}, ${score}, ${JSON.stringify(details)}, NOW())
+    `;
 
-    return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Database Error:', error);
+        return NextResponse.json({ success: false, error: 'Database Error' }, { status: 500 });
+    }
 }
